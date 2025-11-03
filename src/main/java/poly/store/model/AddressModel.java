@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class AddressModel {
+    private Integer id;
 	private String fullName;
 	private String detail;
 	private String phone;

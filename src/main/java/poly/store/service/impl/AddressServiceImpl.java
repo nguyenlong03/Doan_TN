@@ -3,12 +3,19 @@ package poly.store.service.impl;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Repository;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.MapperFeature;
 
 import poly.store.dao.AddressDao;
 import poly.store.dao.ProvinceDao;
@@ -24,6 +31,8 @@ import poly.store.service.AddressService;
 @Service
 @Repository
 public class AddressServiceImpl implements AddressService{
+	private static final Logger logger = LoggerFactory.getLogger(AddressServiceImpl.class);
+
 	@Autowired
 	AddressDao addressDao;
 	
@@ -37,28 +46,99 @@ public class AddressServiceImpl implements AddressService{
 
 	RestTemplate rest = new RestTemplate();
 	String url = "https://addressapi-812db-default-rtdb.firebaseio.com/.json";
-	
+
+	private ProvinceDao loadFromClasspath() {
+        try {
+            ClassPathResource resource = new ClassPathResource("static/assets/json/local.json");
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true);
+            List<Province> provinces = mapper.readValue(resource.getInputStream(), new TypeReference<List<Province>>() {});
+            ProvinceDao dao = new ProvinceDao();
+            if (provinces != null) dao.addAll(provinces);
+            logger.info("Loaded provinces from classpath local.json: {}", dao.size());
+            return dao;
+        } catch (Exception e) {
+            logger.error("Failed to load local provinces from classpath: " + e.getMessage(), e);
+            return new ProvinceDao();
+        }
+    }
+
+	private ProvinceDao getProvinceData() {
+		try {
+			logger.info("Fetching provinces from Firebase: " + url);
+			ProvinceDao list = rest.getForObject(url, ProvinceDao.class);
+			if (list != null && !list.isEmpty()) {
+				logger.info("Successfully fetched {} provinces from Firebase", list.size());
+				return list;
+			}
+		} catch (Exception e) {
+			logger.warn("Failed to fetch from Firebase: {}", e.getMessage());
+		}
+
+		// Fallback: read from bundled classpath JSON (offline-safe)
+		ProvinceDao local = loadFromClasspath();
+		if (!local.isEmpty()) return local;
+
+		logger.error("All data sources failed, returning empty list");
+		return new ProvinceDao();
+	}
+
 	@Override
 	public List<Province> findAllProvince() {
-		ProvinceDao list = rest.getForObject(url, ProvinceDao.class);
-		return list;
+		try {
+			logger.info("Fetching provinces");
+			ProvinceDao list = getProvinceData();
+			if (list == null || list.isEmpty()) {
+				logger.warn("Province list is empty or null");
+				return new ArrayList<>();
+			}
+			logger.info("Successfully fetched {} provinces", list.size());
+			return list;
+		} catch (Exception e) {
+			logger.error("Error fetching provinces: " + e.getMessage(), e);
+			return new ArrayList<>();
+		}
 	}
 
 	@Override
 	public List<District> findDistrictByIdProvince(Integer id) {
-		ProvinceDao list = rest.getForObject(url, ProvinceDao.class);	
-		List<District> listDistrict = list.get(id).getDistricts();		
-		return listDistrict;
+		try {
+			logger.info("Fetching districts for province id: " + id);
+			ProvinceDao list = getProvinceData();
+			if (list == null || list.isEmpty() || id >= list.size()) {
+				logger.warn("Invalid province id or empty list");
+				return new ArrayList<>();
+			}
+			List<District> listDistrict = list.get(id).getDistricts();
+			logger.info("Successfully fetched " + (listDistrict != null ? listDistrict.size() : 0) + " districts");
+			return listDistrict != null ? listDistrict : new ArrayList<>();
+		} catch (Exception e) {
+			logger.error("Error fetching districts: " + e.getMessage(), e);
+			return new ArrayList<>();
+		}
 	}
 
 	@Override
 	public List<Ward> findWardByIdProvinceAndIdDistrict(Integer idProvince, Integer idDistrict) {
-		ProvinceDao list = rest.getForObject(url, ProvinceDao.class);	
-		List<District> listDistrict = list.get(idProvince).getDistricts();
-		
-		List<Ward> listWard = listDistrict.get(idDistrict).getWards();
-		
-		return listWard;
+		try {
+			logger.info("Fetching wards for province id: " + idProvince + ", district id: " + idDistrict);
+			ProvinceDao list = getProvinceData();
+			if (list == null || list.isEmpty() || idProvince >= list.size()) {
+				logger.warn("Invalid province id or empty list");
+				return new ArrayList<>();
+			}
+			List<District> listDistrict = list.get(idProvince).getDistricts();
+			if (listDistrict == null || listDistrict.isEmpty() || idDistrict >= listDistrict.size()) {
+				logger.warn("Invalid district id or empty district list");
+				return new ArrayList<>();
+			}
+			List<Ward> listWard = listDistrict.get(idDistrict).getWards();
+			logger.info("Successfully fetched " + (listWard != null ? listWard.size() : 0) + " wards");
+			return listWard != null ? listWard : new ArrayList<>();
+		} catch (Exception e) {
+			logger.error("Error fetching wards: " + e.getMessage(), e);
+			return new ArrayList<>();
+		}
 	}
 
 	@Override
@@ -67,7 +147,7 @@ public class AddressServiceImpl implements AddressService{
 		String username = ((UserDetails) principal).getUsername();
 		
 		User temp = userDao.findUserByEmail(username);
-		ProvinceDao list = rest.getForObject(url, ProvinceDao.class);	
+		ProvinceDao list = getProvinceData();
 		Province province = list.get(Integer.parseInt(addressModel.getProvince()));
 		District district = province.getDistricts().get(Integer.parseInt(addressModel.getDistrict()));
 		Ward ward = district.getWards().get(Integer.parseInt(addressModel.getWard()));
@@ -80,7 +160,9 @@ public class AddressServiceImpl implements AddressService{
 		address.setDistrict(district.getName());
 		address.setWard(ward.getName());
 		address.setUser(temp);
-		addressDao.save(address);	
+		addressDao.save(address);
+
+		addressModel.setId(address.getId());
 		return addressModel;
 	}
 
@@ -126,8 +208,8 @@ public class AddressServiceImpl implements AddressService{
 		
 		Address address = addressDao.findAddressById(username, id);
 		
-		ProvinceDao list = rest.getForObject(url, ProvinceDao.class);
-		
+		ProvinceDao list = getProvinceData();
+
 		List<District> listDistrict = new ArrayList<>();
 		
 		for(int i = 0; i<list.size(); i++) {
@@ -146,8 +228,8 @@ public class AddressServiceImpl implements AddressService{
 		
 		Address address = addressDao.findAddressById(username, id);		
 		
-		ProvinceDao list = rest.getForObject(url, ProvinceDao.class);
-		
+		ProvinceDao list = getProvinceData();
+
 		List<District> listDistrict = new ArrayList<>();
 		List<Ward> listWard = new ArrayList<>();
 		
@@ -171,7 +253,7 @@ public class AddressServiceImpl implements AddressService{
 		Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
 		String username = ((UserDetails) principal).getUsername();
 		
-		ProvinceDao list = rest.getForObject(url, ProvinceDao.class);	
+		ProvinceDao list = getProvinceData();
 		Province province = list.get(Integer.parseInt(addressModel.getProvince()));
 		District district = province.getDistricts().get(Integer.parseInt(addressModel.getDistrict()));
 		Ward ward = district.getWards().get(Integer.parseInt(addressModel.getWard()));
@@ -187,6 +269,7 @@ public class AddressServiceImpl implements AddressService{
 		address.setUser(temp);
 		addressDao.save(address);
 		
+		addressModel.setId(address.getId());
 		return addressModel;
 	}
 
