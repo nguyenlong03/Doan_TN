@@ -67,20 +67,20 @@ public class Discount implements Serializable {
 	private String Createday;
 
 	// Thong tin ma nguoi tao
-	private int Personcreate;
+	private Integer Personcreate;
 
 	// Thong tin ngay xoa
 	private String Deleteday;
 
 	// Thong tin nguoi xoa
-	private int Persondelete;
+	private Integer Persondelete;
 
 	// Thong tin ngay cap nhat
 	private String Updateday;
 
 	// Thong tin ma nguoi cap nhat
-	private int Personupdate;
-	
+	private Integer Personupdate;
+
 	@JsonIgnore
 	@OneToMany(mappedBy = "discount")
 	List<Order> listOrder;

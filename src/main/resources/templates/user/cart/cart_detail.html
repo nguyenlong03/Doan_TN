@@ -61,41 +61,6 @@
 			</table>
 		</div>
 	</form>
-	<h3>Bạn thích làm gì tiếp theo?</h3>
-	<p>Chọn xem bạn có mã giảm giá hoặc điểm thưởng muốn sử dụng hoặc
-		muốn ước tính chi phí giao hàng của mình.</p>
-	<div class="panel-group" id="accordion">
-		<div class="panel panel-default">
-			<div class="panel-heading">
-				<h4 class="panel-title">
-					<a href="#collapse-coupon" class="accordion-toggle"
-						data-toggle="collapse" data-parent="#accordion">Sử dụng mã
-						giảm giá <i class="fa fa-caret-down"></i>
-					</a>
-				</h4>
-			</div>
-
-			<form th:action="@{/shop/cart/discount}" method="post">
-				<div id="collapse-coupon" class="panel-collapse collapse"
-					th:classappend="${showDiscount?'show':''}">
-					<div class="panel-body">
-						<label class="col-sm-2 control-label" for="input-coupon">Nhập
-							mã giảm giá ở đây</label>
-						<div class="input-group">
-							<input type="text" name="discount" th:value="${discount}"
-								placeholder="Mã giảm giá" id="input-coupon" class="form-control" />
-							<span class="input-group-btn">
-								<button class="btn btn-primary" type="submit" id="button-coupon">Áp
-									dụng mã</button>
-							</span>
-						</div>
-					</div>
-				</div>
-			</form>
-
-		</div>
-
-	</div>
 	<br />
 	<div class="row">
 		<div class="col-sm-4 col-sm-offset-8">
