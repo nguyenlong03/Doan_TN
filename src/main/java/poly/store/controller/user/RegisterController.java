@@ -120,8 +120,32 @@ public class RegisterController {
 				// Random ma xac nhan co 6 chu so
 				int code = (int) Math.floor(((Math.random() * 899999) + 100000));
 				userRegister.setCode(code);
+				
 				// Gui ma xac nhan qua mail
-				mailerService.queue(userRegister.getEmail(), "Xác nhận email!", "Code xác nhận của bạn là: " + code);
+				String subject = "Mã xác thực OTP";
+				String body = "<!DOCTYPE html>"
+						+ "<html lang=\"vi\">"
+						+ "<head>"
+						+ "  <meta charset=\"UTF-8\" />"
+						+ "  <title>Mã OTP</title>"
+						+ "  <style>"
+						+ "    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 16px; }"
+						+ "    .container { padding: 20px; }"
+						+ "    .otp { background: #00bc69; color: #fff; padding: 5px 15px; border-radius: 4px; display: inline-block; font-size: 24px; margin: 10px 0; }"
+						+ "  </style>"
+						+ "</head>"
+						+ "<body>"
+						+ "  <div class=\"container\">"
+						+ "    <p>Chào <strong>" + userRegister.getFullName() + "</strong>,</p>"
+						+ "    <p>Mã xác thực OTP của bạn là:</p>"
+						+ "    <div class=\"otp\">" + code + "</div>"
+						+ "    <p>Lưu ý: Mã OTP chỉ có hiệu lực trong 3 phút.</p>"
+						+ "    <p>Trân trọng,<br/><strong>Đội ngũ phát triển</strong></p>"
+						+ "  </div>"
+						+ "</body>"
+						+ "</html>";
+				
+				mailerService.queue(userRegister.getEmail(), subject, body);
 
 				// Luu thong tin vao session user de tien hanh xac nhan ma
 				sessionService.set("user", userRegister);

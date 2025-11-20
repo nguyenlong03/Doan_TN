@@ -67,7 +67,30 @@ public class ForgetPasswordController {
 			}
 			else {
 				String password = pe.encode(user.getPassword());
-				mailerService.queue(userForm.getEmail(), "Làm mới mật khẩu!", "Vui lòng click vào link này: "+ "http://localhost:8080/reset-password?code="+password+"&email="+user.getEmail() +" để reset mật khẩu.");
+				String subject = "Yêu cầu đặt lại mật khẩu";
+				String body = "<!DOCTYPE html>"
+						+ "<html lang=\"vi\">"
+						+ "<head>"
+						+ "  <meta charset=\"UTF-8\" />"
+						+ "  <title>Yêu cầu đặt lại mật khẩu</title>"
+						+ "  <style>"
+						+ "    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 16px; }"
+						+ "    .container { padding: 20px; }"
+						+ "    a { background: #00bc69; color: #fff !important; padding: 10px 15px; border-radius: 4px; text-decoration: none; display: inline-block; margin: 10px 0; }"
+						+ "  </style>"
+						+ "</head>"
+						+ "<body>"
+						+ "  <div class=\"container\">"
+						+ "    <p>Chào <strong>" + user.getFullname() + "</strong>,</p>"
+						+ "    <p>Chúng tôi đã nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn.</p>"
+						+ "    <p>Vui lòng nhấp vào nút bên dưới để đặt lại mật khẩu:</p>"
+						+ "    <a href=\"http://localhost:8080/reset-password?code="+password+"&email="+user.getEmail()+"\">Đặt lại mật khẩu</a>"
+						+ "    <p>Lưu ý: Liên kết này chỉ có hiệu lực trong 3 phút.</p>"
+						+ "    <p>Trân trọng,<br/><strong>Đội ngũ phát triển</strong></p>"
+						+ "  </div>"
+						+ "</body>"
+						+ "</html>";
+				mailerService.queue(userForm.getEmail(), subject, body);
 			}
 		}
 
